@@ -116,6 +116,36 @@ test("consecutive rule violates only past start + maxMonths", () => {
   assert.equal(ev.cells.find(c => c.date === "2026-03-16").violated, true);  // first over
 });
 
+test("consecutive run resets at a trip boundary even when trips are adjacent (no empty day)", () => {
+  // a 2-month stay then a separate 1-month stay starting the very next day — a real
+  // exit/return, not one continuous stay split for convenience. The clock must reset.
+  let trips = [];
+  trips = E.addTrip(trips, "TR", "2026-01-01", "2026-03-01"); // 2 months
+  trips = E.addTrip(trips, "TR", "2026-03-02", "2026-04-02"); // back next day, fresh stay
+  const ev = E.evaluateCountry(country("TR", consec(2)), trips);
+  assert.equal(ev.violations.length, 0, "neither stay alone exceeds 2 months");
+  assert.equal(ev.cells.find(c => c.date === "2026-03-02").number, 1, "second trip is day 1 of a new run");
+  assert.equal(ev.cells.find(c => c.date === "2026-04-02").violated, false);
+});
+
+test("consecutive run resets on a same-day visa run (trips share the border day)", () => {
+  // leave and re-enter the same day (Mar 1, a visa run): the two TR trips share that day.
+  // The clock resets on Mar 1; the new stay is then judged on its own length.
+  let trips = [];
+  trips = E.addTrip(trips, "TR", "2026-01-01", "2026-03-01");
+  trips = E.addTrip(trips, "TR", "2026-03-01", "2026-06-01"); // visa run on Mar 1, then 3 months
+  const ev = E.evaluateCountry(country("TR", consec(2)), trips);
+
+  assert.equal(ev.cells.find(c => c.date === "2026-03-01").number, 1, "Mar 1 restarts the run");
+  // the shared border day is still a single present day for the country (no double count)
+  assert.equal(E.daysInCountry(trips, "TR").filter(d => d === "2026-03-01").length, 1);
+  // proof the runs did NOT merge: merged, Mar 2 would already be over 2 months
+  assert.equal(ev.cells.find(c => c.date === "2026-03-02").violated, false);
+  // the NEW stay still bites on its own: Mar 1 + 2 months = May 1 is the last allowed day
+  assert.equal(ev.cells.find(c => c.date === "2026-05-01").violated, false);
+  assert.equal(ev.cells.find(c => c.date === "2026-05-02").violated, true);
+});
+
 /* ---------------------------------------------------------------
    year scoping — a country/visa valid only in certain calendar years
    --------------------------------------------------------------- */

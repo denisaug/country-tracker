@@ -42,11 +42,16 @@ function daysInCountry(trips, profileId){
   for(const t of trips){ if(t.profileId!==profileId) continue; for(const d of eachDateInclusive(t.start,t.end)) set.add(d); }
   return [...set].sort();
 }
-function runContaining(daysSorted, date){
+/* `resetStarts` (optional Set of trip start dates) marks where the consecutive clock
+   restarts: a separate trip means the user left and came back (an exit, or a same-day
+   visa run that shares the border day), so the run must not walk back past a trip's
+   first day even when the prior calendar day is present. Omitting it = pure day-set
+   contiguity (only an empty calendar day breaks the run). */
+function runContaining(daysSorted, date, resetStarts){
   const set=new Set(daysSorted);
   if(!set.has(date)) return null;
   let start=date;
-  while(set.has(addDays(start,-1))) start=addDays(start,-1);
+  while(!(resetStarts && resetStarts.has(start)) && set.has(addDays(start,-1))) start=addDays(start,-1);
   return { start, lengthToDate: diffDays(start,date)+1 };
 }
 
@@ -63,15 +68,15 @@ function perYearCount(daysSorted, date){
   let count=0; for(const d of daysSorted) if(d.slice(0,4)===year && d<=date) count++;
   return count;
 }
-function ruleCountOn(daysSorted, date, rule){
+function ruleCountOn(daysSorted, date, rule, resetStarts){
   switch(rule.type){
     case "rolling": return rollingCount(daysSorted,date,rule.windowDays);
     case "perYear": return perYearCount(daysSorted,date);
     case "minPerYear": return perYearCount(daysSorted,date);
-    case "consecutive": { const r=runContaining(daysSorted,date); return r?r.lengthToDate:0; }
+    case "consecutive": { const r=runContaining(daysSorted,date,resetStarts); return r?r.lengthToDate:0; }
   }
 }
-function ruleViolatedOn(daysSorted, date, rule){
+function ruleViolatedOn(daysSorted, date, rule, resetStarts){
   switch(rule.type){
     case "rolling": {
       const c=rollingCount(daysSorted,date,rule.windowDays);
@@ -87,7 +92,7 @@ function ruleViolatedOn(daysSorted, date, rule){
     // a minimum-presence rule is never "over" on a given day — a shortfall is a
     // year-level verdict (see minShortfall), so it doesn't paint calendar cells red
     case "minPerYear": return false;
-    case "consecutive": { const r=runContaining(daysSorted,date); if(!r) return false; return date > addMonths(r.start, rule.maxMonths); }
+    case "consecutive": { const r=runContaining(daysSorted,date,resetStarts); if(!r) return false; return date > addMonths(r.start, rule.maxMonths); }
   }
 }
 /* days present in `year` minus the required minimum; >0 means the requirement isn't met yet */
@@ -109,7 +114,7 @@ function ruleLabel(rule){
   return base;
 }
 // human status value for the verdict panel (uses the most recent present day as "now")
-function ruleStatus(daysSorted, rule){
+function ruleStatus(daysSorted, rule, resetStarts){
   if(daysSorted.length===0) return { broken:false, text:"—" };
   const last=daysSorted[daysSorted.length-1];
   switch(rule.type){
@@ -127,8 +132,8 @@ function ruleStatus(daysSorted, rule){
       return { broken:c>rule.maxDays, text:`${c} of ${rule.maxDays} in ${last.slice(0,4)}` };
     }
     case "consecutive": {
-      const r=runContaining(daysSorted,last);
-      const broken=ruleViolatedOn(daysSorted,last,rule);
+      const r=runContaining(daysSorted,last,resetStarts);
+      const broken=ruleViolatedOn(daysSorted,last,rule,resetStarts);
       return { broken, text: r?`${r.lengthToDate} days in a row`:"—" };
     }
     case "minPerYear": {
@@ -167,6 +172,9 @@ function displayRule(rules){
 }
 function evaluateCountry(country, trips){
   const daysSorted=daysInCountry(trips, country.id);
+  // each trip start resets the "consecutive" clock — a separate trip means an exit
+  // and return (including a same-day visa run), so adjacent/touching trips don't merge
+  const resetStarts=new Set(trips.filter(t=>t.profileId===country.id).map(t=>t.start));
   const primary=displayRule(country.rules);
   const cells=[];
   const byRule=new Map();
@@ -178,7 +186,7 @@ function evaluateCountry(country, trips){
         // a rule may itself be scoped to specific years (e.g. the UK citizenship
         // final-year limit applies only in the year of application)
         if(rule.years && rule.years.length && !rule.years.includes(+date.slice(0,4))) continue;
-        if(ruleViolatedOn(daysSorted,date,rule)){
+        if(ruleViolatedOn(daysSorted,date,rule,resetStarts)){
           violated=true;
           const acc=byRule.get(rule) || { message: violationMessage(country,rule,daysSorted,date), dates: [] };
           acc.dates.push(date); byRule.set(rule,acc);
@@ -188,7 +196,7 @@ function evaluateCountry(country, trips){
     // a cell carries identity (profileId) AND display (code, for the flag) — two profiles
     // may share a code, so the calendar indexes cells by profileId to avoid collisions.
     // number = count per primary rule window; if no rules yet, cumulative days in country
-    cells.push({ date, profileId: country.id, code: country.code, number: primary?ruleCountOn(daysSorted,date,primary):(i+1), violated });
+    cells.push({ date, profileId: country.id, code: country.code, number: primary?ruleCountOn(daysSorted,date,primary,resetStarts):(i+1), violated });
   });
   const violations=[];
   for(const [rule,acc] of byRule) violations.push({ profileId:country.id, code:country.code, rule:rule.type, message:acc.message, dates:acc.dates });
@@ -197,8 +205,11 @@ function evaluateCountry(country, trips){
 
 /* ============================================================
    model/trips — each trip is an INDEPENDENT record (no merging).
-   Rule math unions a profile's days, so splitting/adjacency/overlap doesn't change counts,
-   but add/delete/manage operate on one trip at a time. A flight day (A->B) belongs to
+   Day-counting rules (rolling/perYear) union a profile's days, so splitting/adjacency/
+   overlap doesn't change THEIR counts. The "consecutive" rule is the exception: a trip
+   boundary resets its clock (a separate trip = an exit and return, incl. a same-day visa
+   run), so two adjacent/touching trips are two stays, not one — see resetStarts above.
+   add/delete/manage operate on one trip at a time. A flight day (A->B) belongs to
    two trips at once, so it counts in both profiles — see tripsCoveringDate in app.js.
    A trip references its country PROFILE by `profileId` ("" = unassigned).
    ============================================================ */
