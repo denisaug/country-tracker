@@ -160,7 +160,6 @@ body { background: var(--page, #f4f4f2); }
   transition: background .15s;
 }
 .segpart:hover { background: var(--accent-soft); }
-.segpart-l { border-right: 1px solid var(--line); }  /* the divider between the two halves */
 
 .tdots { display: inline-flex; align-items: center; gap: 5px; }
 .tdot { width: 7px; height: 7px; border-radius: 50%; flex: none; opacity: .4; transition: transform .15s, box-shadow .15s, opacity .15s; }
@@ -172,14 +171,6 @@ body { background: var(--page, #f4f4f2); }
 .tdot.on[data-theme-opt="studio"] { box-shadow: 0 0 0 3px color-mix(in srgb, #4b4ad1 26%, transparent); }
 .tdot.on[data-theme-opt="cockpit"] { box-shadow: 0 0 0 3px color-mix(in srgb, #2fd9c4 30%, transparent); }
 .tname { min-width: 50px; }
-
-/* size dots on the right half — same diameter as the theme dots on the left */
-.dname { min-width: 56px; color: var(--ink); }
-.ddots { display: inline-flex; align-items: center; gap: 5px; }
-.ddot { border-radius: 50%; flex: none; background: var(--muted); opacity: .35; transition: opacity .15s, transform .15s, box-shadow .15s; }
-.ddot[data-density-opt="compact"] { width: 7px; height: 7px; }
-.ddot[data-density-opt="regular"] { width: 11px; height: 11px; }
-.ddot.on { opacity: 1; background: var(--accent); transform: scale(1.05); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ===========================================================================
    layout
@@ -481,6 +472,8 @@ main { max-width: 1320px; margin: 0 auto; padding: 26px 28px 48px; }
 }
 #privacy-note svg { width: 15px; height: 15px; flex: none; color: var(--accent); }
 #privacy-note span { line-height: 1.3; }
+/* the ID's display:flex outranks [hidden]'s display:none, so spell it out or the toast never hides */
+#privacy-note[hidden] { display: none; }
 #privacy-note.out { opacity: 0; transition: opacity .4s ease; }
 #privacy-note-x {
   flex: none; border: 0; background: none; cursor: pointer; color: var(--muted);
@@ -593,4 +586,5 @@ main { max-width: 1320px; margin: 0 auto; padding: 26px 28px 48px; }
   main { padding: 18px 14px 40px; }
   .app { --cell: 44px; --cellgap: 5px; --num: 20px; }
   .bar-row { grid-template-columns: 120px 1fr 60px; gap: 10px; }
+  .sf-note { white-space: normal; } /* let the long footer line wrap instead of overflowing */
 }

@@ -742,7 +742,8 @@ const THEME_ACCENT = { passport: "#bf5a36", studio: "#4b4ad1", cockpit: "#2fd9c4
 const THEME_NAMES = { passport: "Passport", studio: "Studio", cockpit: "Cockpit" };
 const TWEAK_KEY = "stay_tracker_tweaks_v1";
 function loadTweaks() {
-  try { const o = JSON.parse(localStorage.getItem(TWEAK_KEY)); if (o && THEME_ACCENT[o.theme]) return { theme: o.theme, density: o.density || "compact", accent: o.accent || THEME_ACCENT[o.theme] }; } catch (e) {}
+  // density is always "compact" now (the toggle was removed); ignore any stored "regular"
+  try { const o = JSON.parse(localStorage.getItem(TWEAK_KEY)); if (o && THEME_ACCENT[o.theme]) return { theme: o.theme, density: "compact", accent: o.accent || THEME_ACCENT[o.theme] }; } catch (e) {}
   return { theme: "passport", density: "compact", accent: THEME_ACCENT.passport };
 }
 let tweaks = loadTweaks();
@@ -752,19 +753,12 @@ function applyTweaks(t) {
   if (!app || !t) return;
   app.classList.add("no-trans");
   app.dataset.theme = t.theme || "passport";
-  app.dataset.density = t.density || "compact";
+  app.dataset.density = "compact";
   if (t.accent) app.style.setProperty("--accent", t.accent);
   const seg = document.getElementById("theme-switch");
   if (seg) {
     const n = seg.querySelector(".tname"); if (n) n.textContent = THEME_NAMES[t.theme] || "Passport";
     seg.querySelectorAll(".tdot").forEach(d => d.classList.toggle("on", d.dataset.themeOpt === (t.theme || "passport")));
-  }
-  const db = document.getElementById("density-toggle");
-  if (db) {
-    const dens = (t.density || "compact") === "compact" ? "compact" : "regular";
-    db.setAttribute("aria-pressed", String(dens === "compact"));
-    const lbl = db.querySelector(".dname"); if (lbl) lbl.textContent = dens === "compact" ? "Compact" : "Regular";
-    db.querySelectorAll(".ddot").forEach(d => d.classList.toggle("on", d.dataset.densityOpt === dens));
   }
   void app.offsetWidth;
   requestAnimationFrame(() => app.classList.remove("no-trans"));
@@ -779,17 +773,10 @@ function cycleTheme() {
   const next = THEME_ORDER[(THEME_ORDER.indexOf(tweaks.theme) + 1) % THEME_ORDER.length];
   setTheme(next);
 }
-function toggleDensity() {
-  tweaks = { ...tweaks, density: tweaks.density === "compact" ? "regular" : "compact" };
-  saveTweaks(); applyTweaks(tweaks);
-}
 window.getTrackerState = () => state;
 
 const themeSeg = document.getElementById("theme-switch");
 if (themeSeg) themeSeg.addEventListener("click", cycleTheme);
-
-const densityToggle = document.getElementById("density-toggle");
-if (densityToggle) densityToggle.addEventListener("click", toggleDensity);
 
 const helpTop = document.getElementById("help-top");
 if (helpTop) helpTop.addEventListener("click", openHelp);

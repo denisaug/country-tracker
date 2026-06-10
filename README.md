@@ -44,8 +44,7 @@ update live. Plan your year so you never accidentally overstay.
   committing — experiment with dates and watch counters and violations recalculate live.
 - **Statistics & map.** A Stats view with KPI cards, per-year cap headroom bars,
   a days-per-country chart and a D3 world map (globe / flat).
-- **Themes & density.** Three full themes (Passport, Studio, Cockpit) and compact /
-  regular density, persisted locally.
+- **Themes.** Three full themes (Passport, Studio, Cockpit), persisted locally.
 - **Your data stays local.** Everything lives in `localStorage`; JSON import/export
   lets you move between devices. No backend, no accounts, no tracking of your trips.
 
