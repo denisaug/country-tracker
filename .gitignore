@@ -1,0 +1,14 @@
+# Personal/deploy secrets — never commit
+.private/
+
+# Local tooling & editor state
+.claude/
+.playwright-mcp/
+.superpowers/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
