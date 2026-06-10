@@ -1,11 +1,10 @@
 # Racooner — multi-country Stay Tracker
 
 A client-side calendar tool for travellers who need to stay within the legal
-limits of **several countries at once**. Think [ninety180.com](https://ninety180.com),
-but each country carries its own set of stay rules and they are all tracked on a
-single calendar.
+limits of **several countries at once**. Each country carries its own set of stay
+rules and they are all tracked on a single calendar.
 
-Live: **https://racooner.govorunov.pro**
+Live: **[racooner.govorunov.pro](https://racooner.govorunov.pro)**
 
 ## Why
 
